@@ -91,7 +91,7 @@ if search_button:
                     if clean_line:
                         query = urllib.parse.quote(clean_line)
                         search_url = f"https://www.google.com/search?q={query}"
-                        st.markdown(f"- [메뉴이름: {clean_line} (Google)]({search_url})", unsafe_allow_html=True)
+                        st.markdown(f"- [{clean_line} (Google)]({search_url})", unsafe_allow_html=True)
             else:
                 st.warning("급식 정보가 없습니다.")
         else:
