@@ -4,7 +4,7 @@ import requests
 from datetime import datetime
 
 # 🔒 API 키는 절대 코드에 직접 쓰지 말고, Streamlit Secrets에서 불러오기
-api_key = st.secrets["MY_API_KEY"]
+api_key = st.secrets["API_KEY"]
 
 # ------------------------------------------------------------------------------------------
 # 함수 정의
@@ -80,3 +80,4 @@ if search_button:
 
 st.markdown("---")
 st.markdown("이 앱은 NEIS 급식 API 데이터를 바탕으로 제작되었습니다.")
+
