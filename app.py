@@ -70,9 +70,9 @@ if search_button:
     with st.spinner("정보를 불러오는 중입니다..."):
         schools = search_school(school_name)
         if schools:
-            # 검색 결과 여러 학교 중 선택
+            # 검색 결과 여러 학교 중 선택 (라벨 제거)
             school_options = [s["name"] for s in schools]
-            selected_school = st.selectbox("학교 선택", school_options)
+            selected_school = st.selectbox("", school_options)
 
             school_info = next(s for s in schools if s["name"] == selected_school)
             date_str = selected_date.strftime("%Y%m%d")
