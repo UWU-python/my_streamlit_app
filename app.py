@@ -3,6 +3,7 @@ import streamlit as st
 import requests
 from datetime import datetime
 import re
+import urllib.parse  # 검색어를 URL에 넣기 위해 필요
 
 api_key = st.secrets["API_KEY"]
 
@@ -118,9 +119,15 @@ if search_button:
                 st.subheader(f"{school_name} {selected_date.strftime('%Y년 %m월 %d일')} 급식 메뉴")
                 
                 for menu in menus:
-                    # 메뉴 줄바꿈 유지 + 가독성
-                    display_menu = menu.replace("\n", "  \n")
-                    st.markdown(f"**{display_menu}**")
+                    # 줄 단위로 나눠서 각각 검색 링크 달기
+                    lines = menu.split("\n")
+                    for line in lines:
+                        clean_line = line.strip()
+                        if clean_line:
+                            query = urllib.parse.quote(clean_line)
+                            search_url = f"https://www.google.com/search?q={query}"
+                            st.markdown(f"- [{clean_line}]({search_url})", unsafe_allow_html=True)
+
                     st.markdown("---")  # 메뉴별 구분선
                 
             else:
