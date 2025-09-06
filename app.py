@@ -73,7 +73,7 @@ if search_button:
             st.markdown("### 검색된 학교 목록")
             selected_school = None
             for s in schools:
-                if st.button(s["name"]):
+                if st.button(s["name"], key=s["school_code"]):  # 🔑 key 추가
                     selected_school = s
 
             if selected_school:
