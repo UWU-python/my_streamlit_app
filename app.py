@@ -70,32 +70,34 @@ if search_button:
     with st.spinner("정보를 불러오는 중입니다..."):
         schools = search_school(school_name)
         if schools:
-            # 검색 결과 여러 학교 중 선택 (라벨 제거)
-            school_options = [s["name"] for s in schools]
-            selected_school = st.selectbox("", school_options)
+            st.markdown("### 검색된 학교 목록")
+            selected_school = None
+            for s in schools:
+                if st.button(s["name"]):
+                    selected_school = s
 
-            school_info = next(s for s in schools if s["name"] == selected_school)
-            date_str = selected_date.strftime("%Y%m%d")
-            menu_data = get_school_lunch_menu(
-                school_info["office_code"],
-                school_info["school_code"],
-                date_str
-            )
+            if selected_school:
+                date_str = selected_date.strftime("%Y%m%d")
+                menu_data = get_school_lunch_menu(
+                    selected_school["office_code"],
+                    selected_school["school_code"],
+                    date_str
+                )
 
-            if menu_data:
-                st.subheader(f"{selected_school} {selected_date.strftime('%Y년 %m월 %d일')} 급식 메뉴 🍽️")
-                st.caption("👉 메뉴이름을 클릭하면 검색결과로 이동됩니다 (Google)")
+                if menu_data:
+                    st.subheader(f"{selected_school['name']} {selected_date.strftime('%Y년 %m월 %d일')} 급식 메뉴 🍽️")
+                    st.caption("👉 메뉴이름을 클릭하면 검색결과로 이동됩니다 (Google)")
 
-                # 급식 메뉴 가공 (줄바꿈 & HTML 태그 제거)
-                menus = menu_data.replace("<br/>", "\n").split("\n")
-                for menu in menus:
-                    clean_line = menu.strip()
-                    if clean_line:
-                        query = urllib.parse.quote(clean_line)
-                        search_url = f"https://www.google.com/search?q={query}"
-                        st.markdown(f"- [메뉴이름: {clean_line} (Google)]({search_url})", unsafe_allow_html=True)
-            else:
-                st.warning("급식 정보가 없습니다.")
+                    # 급식 메뉴 가공 (줄바꿈 & HTML 태그 제거)
+                    menus = menu_data.replace("<br/>", "\n").split("\n")
+                    for menu in menus:
+                        clean_line = menu.strip()
+                        if clean_line:
+                            query = urllib.parse.quote(clean_line)
+                            search_url = f"https://www.google.com/search?q={query}"
+                            st.markdown(f"- [메뉴이름: {clean_line} (Google)]({search_url})", unsafe_allow_html=True)
+                else:
+                    st.warning("급식 정보가 없습니다.")
         else:
             st.error("학교를 찾을 수 없습니다. 정확한 이름을 입력하세요.")
 
