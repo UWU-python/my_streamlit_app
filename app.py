@@ -18,43 +18,17 @@ ALLERGY_MAP = {
 }
 
 # ----------------------------
-# 함수 정의
+# NEIS API 호출 함수
 # ----------------------------
 @st.cache_data(ttl=60)
 def get_schools(region_code, school_level):
-    url = (
-        f"https://open.neis.go.kr/hub/schoolInfo"
-        f"?KEY={api_key}&Type=json&pIndex=1&pSize=1000"
-        f"&ATPT_OFCDC_SC_CODE={region_code}"
-        f"&SD_SCHUL_SC_CODE={school_level}"
-    )
     try:
-        response = requests.get(url)
-        response.raise_for_status()# -*- coding: utf-8 -*-
-import streamlit as st
-import requests
-from datetime import datetime
-import re
-
-api_key = st.secrets["API_KEY"]
-
-ALLERGY_MAP = {
-    "1": "달걀", "2": "우유", "3": "밀", "4": "메밀", "5": "땅콩",
-    "6": "대두", "7": "호두", "8": "닭고기", "9": "쇠고기",
-    "10": "돼지고기", "11": "복숭아", "12": "토마토",
-    "13": "아황산류", "14": "조개류", "15": "참치",
-    "16": "고등어", "17": "게", "18": "새우", "19": "오징어", "20": "조개류"
-}
-
-@st.cache_data(ttl=60)
-def get_schools(region_code, school_level):
-    url = (
-        f"https://open.neis.go.kr/hub/schoolInfo"
-        f"?KEY={api_key}&Type=json&pIndex=1&pSize=1000"
-        f"&ATPT_OFCDC_SC_CODE={region_code}"
-        f"&SD_SCHUL_SC_CODE={school_level}"
-    )
-    try:
+        url = (
+            f"https://open.neis.go.kr/hub/schoolInfo"
+            f"?KEY={api_key}&Type=json&pIndex=1&pSize=1000"
+            f"&ATPT_OFCDC_SC_CODE={region_code}"
+            f"&SD_SCHUL_SC_CODE={school_level}"
+        )
         response = requests.get(url)
         response.raise_for_status()
         data = response.json()
@@ -63,18 +37,19 @@ def get_schools(region_code, school_level):
             for item in data["schoolInfo"][1]["row"]:
                 schools.append({"name": item["SCHUL_NM"], "code": item["SD_SCHUL_CODE"]})
         return schools
-    except:
+    except Exception as e:
+        print("학교 정보 API 호출 오류:", e)
         return []
 
 @st.cache_data(ttl=60)
 def get_lunch_menu(office_code, school_code, date_str):
-    url = (
-        f"https://open.neis.go.kr/hub/mealServiceDietInfo"
-        f"?KEY={api_key}&Type=json&pIndex=1&pSize=100"
-        f"&ATPT_OFCDC_SC_CODE={office_code}&SD_SCHUL_CODE={school_code}"
-        f"&MLSV_YMD={date_str}"
-    )
     try:
+        url = (
+            f"https://open.neis.go.kr/hub/mealServiceDietInfo"
+            f"?KEY={api_key}&Type=json&pIndex=1&pSize=100"
+            f"&ATPT_OFCDC_SC_CODE={office_code}&SD_SCHUL_CODE={school_code}"
+            f"&MLSV_YMD={date_str}"
+        )
         response = requests.get(url)
         response.raise_for_status()
         data = response.json()
@@ -83,18 +58,28 @@ def get_lunch_menu(office_code, school_code, date_str):
         if meal_info:
             for item in meal_info[1]["row"]:
                 menu = item["DDISH_NM"].replace("<br/>", "\n")
+
+                # 숫자 괄호 → 알레르기 이름
                 def replace_allergy(match):
                     codes = match.group(1).split(".")
                     names = [ALLERGY_MAP.get(code, code) for code in codes]
                     return f"({' , '.join(names)})"
+
                 menu = re.sub(r"\(([\d.]+)\)", replace_allergy, menu)
                 menus.append(menu)
         return menus
-    except:
+    except Exception as e:
+        print("급식 API 호출 오류:", e)
         return []
 
+# ----------------------------
+# Streamlit UI
+# ----------------------------
 st.title("전국 학교 급식 정보 🥗")
 
+# ----------------------------
+# 사이드바 입력
+# ----------------------------
 regions = {
     "서울": "B10", "부산": "C10", "대구": "D10", "인천": "I10",
     "광주": "G10", "대전": "E10", "울산": "U10", "세종": "S10",
