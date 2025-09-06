@@ -20,7 +20,7 @@ ALLERGY_MAP = {
 # ----------------------------
 # 함수 정의
 # ----------------------------
-@st.cache_data(ttl=60)  # 1분 캐시
+@st.cache_data(ttl=60)
 def get_schools(region_code, school_level):
     url = (
         f"https://open.neis.go.kr/hub/schoolInfo"
@@ -75,7 +75,9 @@ def get_lunch_menu(office_code, school_code, date_str):
 # ----------------------------
 st.title("전국 학교 급식 정보 🥗")
 
+# ----------------------------
 # 사이드바 입력
+# ----------------------------
 regions = {
     "서울": "B10", "부산": "C10", "대구": "D10", "인천": "I10",
     "광주": "G10", "대전": "E10", "울산": "U10", "세종": "S10",
@@ -89,16 +91,22 @@ school_levels = {"초등학교": "E", "중학교": "M", "고등학교": "H"}
 school_level_name = st.sidebar.selectbox("학교급 선택", list(school_levels.keys()))
 school_level_code = school_levels[school_level_name]
 
-school_name = st.sidebar.text_input("학교 이름 입력", "")
+school_name = st.sidebar.text_input(
+    "학교 이름 입력", 
+    value="", 
+    help="예: 강남초등학교 / 서초중학교 / 성북고등학교"
+)
 selected_date = st.sidebar.date_input("날짜 선택", value=datetime.today())
 date_str = selected_date.strftime("%Y%m%d")
 
 search_button = st.sidebar.button("급식 검색하기")
 
+# ----------------------------
 # 검색 버튼 클릭 시 처리
+# ----------------------------
 if search_button:
     if not school_name:
-        st.warning("학교 이름을 입력해주세요.")
+        st.warning("학교 이름을 입력해주세요. 예: 강남초등학교")
     else:
         schools = get_schools(region_code, school_level_code)
         school_code = next((s["code"] for s in schools if s["name"] == school_name), None)
