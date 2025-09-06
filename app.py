@@ -128,8 +128,11 @@ if search_button:
                 st.subheader(f"{school_name} {selected_date.strftime('%Y년 %m월 %d일')} 급식 메뉴")
                 
                 for menu in menus:
-                    st.markdown(f"**{menu}**")
+                    # 메뉴 줄바꿈 유지 + 가독성
+                    display_menu = menu.replace("\n", "  \n")
+                    st.markdown(f"**{display_menu}**")
                     
+                    # 메뉴별 좋아요/나빠요 초기화
                     if menu not in st.session_state["likes"]:
                         st.session_state["likes"][menu] = 0
                     if menu not in st.session_state["dislikes"]:
@@ -152,9 +155,9 @@ if search_button:
                                 st.warning("오늘 투표는 5번까지 가능합니다!")
                     
                     st.text(f"좋아요: {st.session_state['likes'][menu]} | 나빠요: {st.session_state['dislikes'][menu]}")
+                    st.markdown("---")  # 메뉴별 구분선
                 
                 st.info(f"오늘 남은 투표 가능 횟수: {5 - st.session_state['vote_count']}")
-                
             else:
                 st.warning("급식 정보가 없습니다.")
         else:
