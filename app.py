@@ -117,7 +117,8 @@ if search_button:
             menus = get_lunch_menu(region_code, school_code, date_str)
             if menus:
                 st.subheader(f"{school_name} {selected_date.strftime('%Y년 %m월 %d일')} 급식 메뉴")
-                
+                st.caption("👉 메뉴를 클릭하면 검색결과로 이동됩니다")
+
                 for menu in menus:
                     # 줄 단위로 나눠서 각각 검색 링크 달기
                     lines = menu.split("\n")
