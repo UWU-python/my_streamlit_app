@@ -104,16 +104,6 @@ date_str = selected_date.strftime("%Y%m%d")
 search_button = st.sidebar.button("급식 검색하기")
 
 # ----------------------------
-# 투표 초기화
-# ----------------------------
-if "likes" not in st.session_state:
-    st.session_state["likes"] = {}
-if "dislikes" not in st.session_state:
-    st.session_state["dislikes"] = {}
-if "vote_count" not in st.session_state:
-    st.session_state["vote_count"] = 0  # 오늘 하루 투표 횟수
-
-# ----------------------------
 # 검색 버튼 클릭 시 처리
 # ----------------------------
 if search_button:
@@ -131,33 +121,8 @@ if search_button:
                     # 메뉴 줄바꿈 유지 + 가독성
                     display_menu = menu.replace("\n", "  \n")
                     st.markdown(f"**{display_menu}**")
-                    
-                    # 메뉴별 좋아요/나빠요 초기화
-                    if menu not in st.session_state["likes"]:
-                        st.session_state["likes"][menu] = 0
-                    if menu not in st.session_state["dislikes"]:
-                        st.session_state["dislikes"][menu] = 0
-                    
-                    col1, col2 = st.columns(2)
-                    with col1:
-                        if st.button(f"👍 좋아요", key=f"like_{menu}"):
-                            if st.session_state["vote_count"] < 5:
-                                st.session_state["likes"][menu] += 1
-                                st.session_state["vote_count"] += 1
-                            else:
-                                st.warning("오늘 투표는 5번까지 가능합니다!")
-                    with col2:
-                        if st.button(f"👎 나빠요", key=f"dislike_{menu}"):
-                            if st.session_state["vote_count"] < 5:
-                                st.session_state["dislikes"][menu] += 1
-                                st.session_state["vote_count"] += 1
-                            else:
-                                st.warning("오늘 투표는 5번까지 가능합니다!")
-                    
-                    st.text(f"좋아요: {st.session_state['likes'][menu]} | 나빠요: {st.session_state['dislikes'][menu]}")
                     st.markdown("---")  # 메뉴별 구분선
                 
-                st.info(f"오늘 남은 투표 가능 횟수: {5 - st.session_state['vote_count']}")
             else:
                 st.warning("급식 정보가 없습니다.")
         else:
