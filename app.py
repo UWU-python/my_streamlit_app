@@ -143,14 +143,18 @@ if st.session_state.search_clicked:
                 st.warning("급식 정보가 없습니다.")
 
             # ------------------------------------------------
-            # 근처 학교 급식 쇼츠형 UI
+            # 근처 학교 급식 쇼츠형 UI (우리 학교 제외)
             # ------------------------------------------------
             if st.button("근처 학교 급식 구경하기"):
                 # 같은 지역 학교 가져오기, 우리 학교 제외
                 other_schools = [r for r in results if r["SD_SCHUL_CODE"] != school_code]
-                st.session_state.browse_schools = random.sample(other_schools, min(20, len(other_schools)))
-                st.session_state.browse_index = 0
+                if other_schools:
+                    st.session_state.browse_schools = random.sample(other_schools, min(20, len(other_schools)))
+                    st.session_state.browse_index = 0
+                else:
+                    st.warning("같은 지역 다른 학교 급식 정보가 없습니다.")
 
+            # 쇼츠형으로 한 학교씩 표시
             if st.session_state.browse_schools:
                 idx = st.session_state.browse_index
                 s = st.session_state.browse_schools[idx]
