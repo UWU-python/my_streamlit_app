@@ -140,44 +140,30 @@ if st.session_state.search_clicked:
                 st.warning("급식 정보가 없습니다.")
 
             # ------------------------------------------------
-            # 다른 학교 비교 버튼
+            # 다른 학교 급식 구경하기 버튼
             # ------------------------------------------------
-            if st.button("오늘 다른 학교 급식 살펴보기"):
+            if st.button("다른 학교 급식 구경하기"):
                 st.session_state.compare_clicked = True
 
             if st.session_state.compare_clicked:
-                st.markdown("### 같은 지역 다른 학교 급식 비교 🍽️")
+                st.markdown("### 같은 지역 다른 학교 급식 🍽️")
                 # 같은 지역 학교 중 우리 학교 제외
                 other_schools = [r for r in results if r["SD_SCHUL_CODE"] != school_code]
-                # 랜덤 최대 5개
                 other_schools = random.sample(other_schools, min(5, len(other_schools)))
 
-                all_other_menus = []
                 for s in other_schools:
-                    menus = get_school_lunch_menu(api_key, s["ATPT_OFCDC_SC_CODE"], s["SD_SCHUL_CODE"], date_str)
-                    if menus:
-                        all_other_menus.extend([m for m in menus])
-
-                # 우리 학교만 있는 메뉴
-                unique_menu = []
-                if our_school_menu:
-                    our_set = set([m.strip() for m in our_school_menu])
-                    other_set = set([m.strip() for m in all_other_menus])
-                    unique_menu = list(our_set - other_set)
-
-                if unique_menu:
-                    st.markdown("### 오늘 우리 학교에서만 맛볼 수 있는 메뉴 🌟")
-                    for menu in unique_menu:
-                        lines = menu.split("<br/>")
-                        for line in lines:
-                            clean_line = line.strip()
-                            if clean_line:
-                                query = urllib.parse.quote(clean_line)
-                                search_url = f"https://www.google.com/search?q={query}"
-                                st.markdown(f"- [{clean_line} (Google)]({search_url})", unsafe_allow_html=True)
-                    st.markdown("---")
-                else:
-                    st.info("오늘 우리 학교 메뉴는 다른 학교와 겹칩니다. 😄")
+                    other_menu = get_school_lunch_menu(api_key, s["ATPT_OFCDC_SC_CODE"], s["SD_SCHUL_CODE"], date_str)
+                    if other_menu:
+                        st.markdown(f"**{s['SCHUL_NM']}**")
+                        for menu in other_menu:
+                            lines = menu.split("<br/>")
+                            for line in lines:
+                                clean_line = line.strip()
+                                if clean_line:
+                                    query = urllib.parse.quote(clean_line)
+                                    search_url = f"https://www.google.com/search?q={query}"
+                                    st.markdown(f"- [{clean_line} (Google)]({search_url})", unsafe_allow_html=True)
+                        st.markdown("---")
 
         else:
             st.error("학교 코드 추출에 실패했습니다.")
