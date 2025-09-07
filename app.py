@@ -3,8 +3,9 @@ import streamlit as st
 import requests
 from datetime import datetime
 import urllib.parse
+import re
 
-# 🔒 API 키는 절대 코드에 직접 쓰지 말고, Streamlit Secrets에서 불러오기
+# 🔒 API 키는 Streamlit Secrets에서 불러오기
 api_key = st.secrets["API_KEY"]
 
 # ------------------------------------------------------------------------------------------
@@ -54,7 +55,6 @@ ALLERGY_MAP = {
 
 def replace_allergy_numbers(menu_text):
     """메뉴 안의 알레르기 숫자를 이름으로 치환"""
-    import re
     def repl(match):
         nums = match.group(0).strip("()").split(".")
         names = [ALLERGY_MAP.get(n, n) for n in nums]
@@ -110,32 +110,39 @@ if search_button:
             choice = st.selectbox("학교를 선택하세요", options)
             st.success(f"✅ 선택된 학교: {choice}")
 
-            # 실제 코드 값 추출
-            selected = results[options.index(choice)]
-            office_code = selected["ATPT_OFCDC_SC_CODE"]
-            school_code = selected["SD_SCHUL_CODE"]
+            # ✅ 선택된 학교를 정확히 매칭해서 코드 추출
+            office_code, school_code = None, None
+            for r in results:
+                option_label = f"{r['SCHUL_NM']} ({r['ORG_RDNMA'].split()[0]})"
+                if option_label == choice:
+                    office_code = r["ATPT_OFCDC_SC_CODE"]
+                    school_code = r["SD_SCHUL_CODE"]
+                    break
 
-            # 날짜 변환
-            date_str = selected_date.strftime("%Y%m%d")
+            if office_code and school_code:
+                # 날짜 변환
+                date_str = selected_date.strftime("%Y%m%d")
 
-            # 급식 정보 가져오기
-            menu_data = get_school_lunch_menu(api_key, office_code, school_code, date_str)
-            if menu_data:
-                st.subheader(f"{choice} {selected_date.strftime('%Y년 %m월 %d일')} 급식")
-                st.markdown("메뉴 이름을 클릭하면 Google 검색 결과로 이동됩니다 🔎")
+                # 급식 정보 가져오기
+                menu_data = get_school_lunch_menu(api_key, office_code, school_code, date_str)
+                if menu_data:
+                    st.subheader(f"{choice} {selected_date.strftime('%Y년 %m월 %d일')} 급식")
+                    st.markdown("메뉴 이름을 클릭하면 Google 검색 결과로 이동됩니다 🔎")
 
-                for menu in menu_data:
-                    # 줄 단위로 나눠서 링크 생성
-                    lines = menu.split("<br/>")
-                    for line in lines:
-                        clean_line = line.strip()
-                        if clean_line:
-                            query = urllib.parse.quote(clean_line)
-                            search_url = f"https://www.google.com/search?q={query}"
-                            st.markdown(f"- [{clean_line} (Google)]({search_url})", unsafe_allow_html=True)
-                    st.markdown("---")
+                    for menu in menu_data:
+                        # 줄 단위로 나눠서 링크 생성
+                        lines = menu.split("<br/>")
+                        for line in lines:
+                            clean_line = line.strip()
+                            if clean_line:
+                                query = urllib.parse.quote(clean_line)
+                                search_url = f"https://www.google.com/search?q={query}"
+                                st.markdown(f"- [{clean_line} (Google)]({search_url})", unsafe_allow_html=True)
+                        st.markdown("---")
+                else:
+                    st.warning("급식 정보가 없습니다.")
             else:
-                st.warning("급식 정보가 없습니다.")
+                st.error("학교 코드 추출에 실패했습니다.")
         else:
             st.error("학교 정보를 찾을 수 없습니다. 다시 입력해 주세요.")
 
