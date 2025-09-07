@@ -4,7 +4,6 @@ import requests
 from datetime import datetime
 import urllib.parse
 import re
-import random
 
 # 🔒 API 키는 Streamlit Secrets에서 불러오기
 api_key = st.secrets["API_KEY"]
@@ -86,10 +85,6 @@ if "school_results" not in st.session_state:
     st.session_state.school_results = []
 if "selected_school" not in st.session_state:
     st.session_state.selected_school = None
-if "browse_index" not in st.session_state:
-    st.session_state.browse_index = 0
-if "browse_schools" not in st.session_state:
-    st.session_state.browse_schools = []
 
 school_name = st.text_input("학교 이름을 입력하세요 (예: 강남초등학교)")
 selected_date = st.date_input("날짜를 선택하세요", value=datetime.today())
@@ -97,8 +92,6 @@ selected_date = st.date_input("날짜를 선택하세요", value=datetime.today(
 # 검색 버튼 클릭
 if st.button("급식 검색하기"):
     st.session_state.search_clicked = True
-    st.session_state.browse_index = 0
-    st.session_state.browse_schools = []
     st.session_state.school_results = search_school(api_key, school_name)
 
 # 학교 검색 후 UI 표시
@@ -116,12 +109,11 @@ if st.session_state.search_clicked:
         st.success(f"✅ 선택된 학교: {choice}")
 
         # 선택된 학교 코드
-        office_code, school_code, region_code = None, None, None
+        office_code, school_code = None, None
         for r in results:
             if r['SCHUL_NM'] in choice and r['ORG_RDNMA'].split()[0] in choice:
                 office_code = r["ATPT_OFCDC_SC_CODE"]
                 school_code = r["SD_SCHUL_CODE"]
-                region_code = r["ATPT_OFCDC_SC_CODE"]
                 break
 
         if office_code and school_code:
@@ -141,42 +133,6 @@ if st.session_state.search_clicked:
                     st.markdown("---")
             else:
                 st.warning("급식 정보가 없습니다.")
-
-            # ------------------------------------------------
-            # 근처 학교 급식 쇼츠형 UI (우리 학교 제외)
-            # ------------------------------------------------
-            if st.button("근처 학교 급식 구경하기"):
-                # 같은 지역 학교 가져오기, 우리 학교 제외
-                other_schools = [r for r in results if r["SD_SCHUL_CODE"] != school_code]
-                if other_schools:
-                    st.session_state.browse_schools = random.sample(other_schools, min(20, len(other_schools)))
-                    st.session_state.browse_index = 0
-                else:
-                    st.warning("같은 지역 다른 학교 급식 정보가 없습니다.")
-
-            # 쇼츠형으로 한 학교씩 표시
-            if st.session_state.browse_schools:
-                idx = st.session_state.browse_index
-                s = st.session_state.browse_schools[idx]
-                other_menu = get_school_lunch_menu(api_key, s["ATPT_OFCDC_SC_CODE"], s["SD_SCHUL_CODE"], date_str)
-                if other_menu:
-                    st.markdown(f"### {s['SCHUL_NM']} {selected_date.strftime('%Y년 %m월 %d일')} 급식 🍽️")
-                    for menu in other_menu:
-                        lines = menu.split("<br/>")
-                        for line in lines:
-                            clean_line = line.strip()
-                            if clean_line:
-                                query = urllib.parse.quote(clean_line)
-                                search_url = f"https://www.google.com/search?q={query}"
-                                st.markdown(f"- [{clean_line} (Google)]({search_url})", unsafe_allow_html=True)
-                    st.markdown("---")
-                # 다음 버튼
-                if idx + 1 < len(st.session_state.browse_schools):
-                    if st.button("다음 급식 보기 ▶️"):
-                        st.session_state.browse_index += 1
-                else:
-                    st.info("모든 근처 학교 급식을 다 보았습니다.")
-
         else:
             st.error("학교 코드 추출에 실패했습니다.")
     else:
