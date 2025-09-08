@@ -131,6 +131,33 @@ if st.session_state.search_clicked:
                             search_url = f"https://www.google.com/search?q={query}"
                             st.markdown(f"- [{clean_line} (Google)]({search_url})", unsafe_allow_html=True)
                     st.markdown("---")
+
+                # ------------------------------------------------------------------------------------------
+                # ✅ 맛 평가 기능 추가
+                # ------------------------------------------------------------------------------------------
+                if "votes" not in st.session_state:
+                    st.session_state.votes = {"good": 0, "bad": 0}
+                if "voted" not in st.session_state:
+                    st.session_state.voted = False
+
+                st.markdown("### 오늘 급식 맛 평가 🍴")
+
+                col1, col2 = st.columns(2)
+                with col1:
+                    if st.button("👍 맛있어요", disabled=st.session_state.voted):
+                        st.session_state.votes["good"] += 1
+                        st.session_state.voted = True
+                with col2:
+                    if st.button("👎 별로예요", disabled=st.session_state.voted):
+                        st.session_state.votes["bad"] += 1
+                        st.session_state.voted = True
+
+                total_votes = st.session_state.votes["good"] + st.session_state.votes["bad"]
+                if total_votes > 0:
+                    st.progress(int((st.session_state.votes["good"] / total_votes) * 100))
+                st.write(f"👍 맛있어요: {st.session_state.votes['good']} 표")
+                st.write(f"👎 별로예요: {st.session_state.votes['bad']} 표")
+
             else:
                 st.warning("급식 정보가 없습니다.")
         else:
