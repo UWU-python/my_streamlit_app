@@ -1,115 +1,142 @@
+# -*- coding: utf-8 -*-
 import streamlit as st
 import requests
-import pandas as pd
 from datetime import datetime
-import os
-import json
+import urllib.parse
+import re
 
-# 🔹 세션 상태 기본값 설정 (오류 방지)
-if "region" not in st.session_state:
-    st.session_state.region = None
-if "school_code" not in st.session_state:
-    st.session_state.school_code = None
-if "ratings" not in st.session_state:
-    st.session_state.ratings = {}  # 맛 평가 저장용
+# 🔒 API 키는 Streamlit Secrets에서 불러오기
+api_key = st.secrets["API_KEY"]
 
-# 🔹 NEIS API 키 (환경변수에서 불러오기)
-NEIS_API_KEY = os.getenv("NEIS_API_KEY")
+# ------------------------------------------------------------------------------------------
+# 학교 검색 함수
+# ------------------------------------------------------------------------------------------
+def search_school(api_key, school_name):
+    """학교 이름으로 검색"""
+    url = (
+        "https://open.neis.go.kr/hub/schoolInfo"
+        f"?KEY={api_key}&Type=json&pIndex=1&pSize=100&SCHUL_NM={school_name}"
+    )
+    try:
+        response = requests.get(url)
+        response.raise_for_status()
+        data = response.json()
+        if "schoolInfo" not in data:
+            return []
+        return data["schoolInfo"][1]["row"]
+    except Exception:
+        return []
 
-# 🔹 지역 교육청 코드 매핑
-region_map = {
-    "서울": "B10",
-    "부산": "C10",
-    "대구": "D10",
-    "인천": "E10",
-    "광주": "F10",
-    "대전": "G10",
-    "울산": "H10",
-    "세종": "I10",
-    "경기": "J10",
-    "강원": "K10",
-    "충북": "M10",
-    "충남": "N10",
-    "전북": "P10",
-    "전남": "Q10",
-    "경북": "R10",
-    "경남": "S10",
-    "제주": "T10"
+# ------------------------------------------------------------------------------------------
+# 급식 API 호출
+# ------------------------------------------------------------------------------------------
+ALLERGY_MAP = {
+    "1": "난류", "2": "우유", "3": "메밀", "4": "땅콩", "5": "대두", "6": "밀",
+    "7": "고등어", "8": "게", "9": "새우", "10": "돼지고기", "11": "복숭아", "12": "토마토",
+    "13": "아황산류", "14": "호두", "15": "닭고기", "16": "쇠고기", "17": "오징어",
+    "18": "조개류",
 }
 
-# 🔹 학교 검색 함수
-def search_school(region, school_name):
-    url = f"https://open.neis.go.kr/hub/schoolInfo?KEY={NEIS_API_KEY}&Type=json&pIndex=1&pSize=100&SCHUL_NM={school_name}&ATPT_OFCDC_SC_CODE={region_map[region]}"
-    res = requests.get(url)
-    data = res.json()
-    if "schoolInfo" in data:
-        rows = data["schoolInfo"][1]["row"]
-        return pd.DataFrame(rows)
-    return None
+def replace_allergy_numbers(menu_text):
+    """메뉴 안의 알레르기 숫자를 이름으로 치환"""
+    def repl(match):
+        nums = match.group(0).strip("()").split(".")
+        names = [ALLERGY_MAP.get(n, n) for n in nums]
+        return "(" + ", ".join(names) + ")"
+    return re.sub(r"\(([\d\.]+)\)", repl, menu_text)
 
-# 🔹 급식 불러오기
-def get_meal(region, school_code, date):
-    url = f"https://open.neis.go.kr/hub/mealServiceDietInfo?KEY={NEIS_API_KEY}&Type=json&pIndex=1&pSize=10&ATPT_OFCDC_SC_CODE={region_map[region]}&SD_SCHUL_CODE={school_code}&MLSV_YMD={date}"
-    res = requests.get(url)
-    data = res.json()
-    if "mealServiceDietInfo" in data:
-        rows = data["mealServiceDietInfo"][1]["row"]
-        meals = rows[0]["DDISH_NM"].split("<br/>")
-        # 알레르기 숫자 제거
-        clean_meals = []
-        for m in meals:
-            clean_meals.append(''.join([c for c in m if not c.isdigit()]))
-        return clean_meals
-    return None
+def get_school_lunch_menu(api_key, office_code, school_code, date_str):
+    """급식 메뉴 API 호출"""
+    url = (
+        f"https://open.neis.go.kr/hub/mealServiceDietInfo"
+        f"?KEY={api_key}"
+        f"&Type=json&pIndex=1&pSize=100"
+        f"&ATPT_OFCDC_SC_CODE={office_code}"
+        f"&SD_SCHUL_CODE={school_code}"
+        f"&MLSV_YMD={date_str}"
+    )
+    try:
+        response = requests.get(url)
+        response.raise_for_status()
+        data = response.json()
+        meal_info = data.get("mealServiceDietInfo")
+        if not meal_info or len(meal_info) < 2 or "row" not in meal_info[1]:
+            return None
+        rows = meal_info[1]["row"]
 
-# 🔹 맛 평가 저장 함수
-def save_rating(menu, rating):
-    st.session_state.ratings[menu] = rating
+        menus = []
+        for r in rows:
+            menu_text = replace_allergy_numbers(r.get("DDISH_NM", ""))
+            menus.append(menu_text)
+        return menus
+    except Exception as e:
+        st.error(f"API 요청 오류: {e}")
+        return None
 
-# 🔹 앱 시작
-st.title("🍽️ 오늘의 급식 확인하기")
+# ------------------------------------------------------------------------------------------
+# Streamlit UI
+# ------------------------------------------------------------------------------------------
+st.title("전국 학교 급식 정보 🥗")
 
-# 오늘 날짜
-today = datetime.now().strftime("%Y%m%d")
+# Session state 초기화
+if "search_clicked" not in st.session_state:
+    st.session_state.search_clicked = False
+if "school_results" not in st.session_state:
+    st.session_state.school_results = []
+if "selected_school" not in st.session_state:
+    st.session_state.selected_school = None
 
-# 지역 선택
-region = st.selectbox("지역 선택", list(region_map.keys()))
-school_name = st.text_input("학교 이름 입력")
+school_name = st.text_input("학교 이름을 입력하세요 (예: 강남초등학교)")
+selected_date = st.date_input("날짜를 선택하세요", value=datetime.today())
 
-if st.button("학교 검색"):
-    schools = search_school(region, school_name)
-    if schools is not None:
-        st.session_state.region = region
-        st.session_state.schools = schools
-        st.write("학교를 선택하세요:")
-        for i, row in schools.iterrows():
-            if st.button(row["SCHUL_NM"]):
-                st.session_state.school_code = row["SD_SCHUL_CODE"]
-    else:
-        st.error("학교를 찾을 수 없습니다.")
+# 검색 버튼 클릭
+if st.button("급식 검색하기"):
+    st.session_state.search_clicked = True
+    st.session_state.school_results = search_school(api_key, school_name)
 
-# 🔹 급식 보여주기
-if st.session_state.region and st.session_state.school_code:
-    meals = get_meal(st.session_state.region, st.session_state.school_code, today)
-    if meals:
-        st.subheader("🍴 오늘의 급식 메뉴")
-        for menu in meals:
-            st.markdown(f"- [{menu} (Google)](https://www.google.com/search?q={menu})")
-            
-            # 맛 평가 기능
-            rating = st.radio(
-                f"👉 {menu} 맛 평가:",
-                ["아직 안 먹음", "맛있음 😋", "그냥 그럼 😐", "별로임 😣"],
-                key=f"rating_{menu}"
-            )
-            if rating != "아직 안 먹음":
-                save_rating(menu, rating)
+# 학교 검색 후 UI 표시
+if st.session_state.search_clicked:
+    results = st.session_state.school_results
+    if results:
+        options = [
+            f"{r['SCHUL_NM']} ({r['ORG_RDNMA'].split()[0]})"
+            for r in results
+        ]
+        if st.session_state.selected_school not in options:
+            st.session_state.selected_school = options[0]
+        choice = st.selectbox("학교를 선택하세요", options, index=options.index(st.session_state.selected_school))
+        st.session_state.selected_school = choice
+        st.success(f"✅ 선택된 학교: {choice}")
 
-        st.subheader("📊 맛 평가 결과")
-        if st.session_state.ratings:
-            for menu, rating in st.session_state.ratings.items():
-                st.write(f"{menu} ➝ {rating}")
+        # 선택된 학교 코드
+        office_code, school_code = None, None
+        for r in results:
+            if r['SCHUL_NM'] in choice and r['ORG_RDNMA'].split()[0] in choice:
+                office_code = r["ATPT_OFCDC_SC_CODE"]
+                school_code = r["SD_SCHUL_CODE"]
+                break
+
+        if office_code and school_code:
+            date_str = selected_date.strftime("%Y%m%d")
+            our_school_menu = get_school_lunch_menu(api_key, office_code, school_code, date_str)
+            if our_school_menu:
+                st.subheader(f"{choice} {selected_date.strftime('%Y년 %m월 %d일')} 급식")
+                st.markdown("메뉴 이름을 클릭하면 Google 검색 결과로 이동됩니다 🔎")
+                for menu in our_school_menu:
+                    lines = menu.split("<br/>")
+                    for line in lines:
+                        clean_line = line.strip()
+                        if clean_line:
+                            query = urllib.parse.quote(clean_line)
+                            search_url = f"https://www.google.com/search?q={query}"
+                            st.markdown(f"- [{clean_line} (Google)]({search_url})", unsafe_allow_html=True)
+                    st.markdown("---")
+            else:
+                st.warning("급식 정보가 없습니다.")
         else:
-            st.write("아직 평가가 없습니다.")
+            st.error("학교 코드 추출에 실패했습니다.")
     else:
-        st.warning("오늘은 급식 정보가 없습니다.")
+        st.error("학교 정보를 찾을 수 없습니다. 다시 입력해 주세요.")
+
+st.markdown("---")
+st.markdown("이 앱은 NEIS 급식 API 데이터를 바탕으로 제작되었습니다.")
